@@ -1,38 +1,46 @@
-#Agregar modulo pybrain a la carpeta src o incluirla al pythonpath
-
 from pybrain.tools.shortcuts import buildNetwork
-from pybrain.structure import TanhLayer
 from pybrain.datasets import SupervisedDataSet
 from pybrain.supervised.trainers import BackpropTrainer
+from numpy import genfromtxt
+from itertools import islice
+import csv
 
-#creo una red generica
-net = buildNetwork(2, 3, 1)
+def readFromCsvIteration(file, iteration, step):
+	with open(file, 'rb') as f:
+		array = genfromtxt(islice(f, iteration*step ,iteration*step + step), delimiter=',',skip_header=1, usecols=range(0,5))
+	return array
 
-#pruebo de activar un valor para ver que funcione
-print (net.activate([2, 1]))
+def activateNet():
+	userid=int(raw_input('user id:'))
+	agerange=int(raw_input('age range:'))
+	gender=int(raw_input('gender:'))
+	merchant_id=int(raw_input('merchant id:'))
+	
+	print net.activate([userid, agerange, gender, merchant_id])
+	activateNet()
 
-#Creo un dataset de 2 elementos de entrada y 1 de salida
-ds = SupervisedDataSet(2, 1)
+print "ITERATION 0"
+array = readFromCsvIteration('/home/lara/FIUBA/ROBOTS/data_format2/train_format2.csv',0, 100)
+number_of_columns = array.shape[1]
 
-#le cargo algunos valores(XOR):
-ds.addSample((0, 0), (0,))
-ds.addSample((0, 1), (1,))
-ds.addSample((1, 0), (1,))
-ds.addSample((1, 1), (0,))
+ds = SupervisedDataSet(number_of_columns - 1, 1)
+ds.setField('input', array[:,:-1])
+ds.setField('target', array[:,-1:])
 
-#Vemos un poco los datos
-print len(ds)
+net = buildNetwork(ds.indim,8,8,ds.outdim,recurrent=True)
 
-for inpt, target in ds:
-    print inpt, target
-    
-print ds['input']
+t = BackpropTrainer(net,learningrate=0.001,momentum=0.05)
+t.trainUntilConvergence(ds,maxEpochs=200)
 
-print ds['target']
+for i in range(1, 10):
+	print "ITERATION " + str(i)
+	array = readFromCsvIteration('/home/lara/FIUBA/ROBOTS/data_format2/train_format2.csv',i, 100)
+	number_of_columns = array.shape[1]
 
-net = buildNetwork(2, 3, 1, bias=True, hiddenclass=TanhLayer)
-trainer = BackpropTrainer(net, ds)
+	ds = SupervisedDataSet(number_of_columns - 1, 1)
+	ds.setField('input', array[:,:-1])
+	ds.setField('target', array[:,-1:])
 
-print trainer.train()
+	t.trainUntilConvergence(ds,maxEpochs=200)
 
-print trainer.trainUntilConvergence()
+activateNet()
